@@ -164,3 +164,5 @@ for i in range(len(nodes_list)):
  plt.grid()
  plt.tight_layout()
  plt.savefig("temp_node-"+str(nodes_list[i])+"_50m.png", dpi=300)
+ plt.close("all")
+
