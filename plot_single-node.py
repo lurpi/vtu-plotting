@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Fri Jun 11 21:19:04 2021
 
@@ -86,7 +85,6 @@ displ=[]
 folder="res_vtk"
 pvd_file="kombilager.pvd"
 filename=folder+'//'+pvd_file
-
  
 vtu_list,vtu_t=(read_vtufiles(filename))
 
@@ -155,15 +153,14 @@ for jj in range(len(nodes_list)):
 
 fig = plt.figure(figsize=[7.8, 3.0])
 ax = fig.add_subplot(111)
-for i in range(len())
-ax.semilogx(time_node[0],temperature[0], ls='--',lw=3.0, label=str(x[0][0])+", "+str(y[0][0]))
-ax.semilogx(time_node[1],temperature[1], ls='-',lw=3.0, label=str(x[1][0])+", "+str(y[1][0]))
+for i in range(len(nodes_list)):
+ ax.semilogx(time_node[i],temperature[i], ls='-',lw=3.0, label=str(x[i][0])+", "+str(y[i][0]))
 
-ax.set_xlabel('Zeit [j]', fontsize=16)
-ax.set_ylabel('Temperature [K]', fontsize=16)
-norm = mpl.colors.Normalize(vmin=0, vmax=np.max(time))
+ ax.set_xlabel('Zeit [j]', fontsize=16)
+ ax.set_ylabel('Temperature [K]', fontsize=16)
+ norm = mpl.colors.Normalize(vmin=0, vmax=np.max(time))
 
-plt.legend()
-plt.grid()
-plt.tight_layout()
-plt.savefig("temp_nodes_50m.png", dpi=300)
+ plt.legend()
+ plt.grid()
+ plt.tight_layout()
+ plt.savefig("temp_node-"+str(nodes_list[i])+"_50m.png", dpi=300)
