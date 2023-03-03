@@ -161,7 +161,7 @@ steps=[]
 time=[]
 #%%
 y_section=30.3
-scale_par=2.5e7
+scale_par=2.5e8
 
 
 max_sig=0  
