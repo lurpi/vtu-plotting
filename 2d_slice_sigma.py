@@ -111,7 +111,7 @@ def project_reg_grid(x_data,y_data,p_data, **kwargs):
         yg=list(set(y_tmp))
     else:
         xg = np.linspace(-50,100,51)
-        yg = np.linspace(--50,100,51)
+        yg = np.linspace(-50,100,51)
     x_proj, y_proj = np.meshgrid(xg, yg)
     # grid the data
     zg = griddata((x_data, y_data), p_data, (x_proj.ravel(), y_proj.ravel()), method='nearest')    
@@ -161,7 +161,7 @@ steps=[]
 time=[]
 #%%
 y_section=30.3
-scale_par=2.5e8
+scale_par=10.5e7
 
 
 max_sig=0  
@@ -206,19 +206,47 @@ for ii in chosen_times:
            princ_stress[ii].append(eigvals.real)
            princ_dir[ii].append(eigvecs)
            
-           S1[ii].append(eigvals.real[0])
-           S2[ii].append(eigvals.real[1])
-           S3[ii].append(eigvals.real[2])
-           dir1x[ii].append(eigvecs.real[0][0])
-           dir2x[ii].append(eigvecs.real[1][0])
-           dir3x[ii].append(eigvecs.real[2][0])
-           dir1y[ii].append(eigvecs.real[0][1])
-           dir2y[ii].append(eigvecs.real[1][1])
-           dir3y[ii].append(eigvecs.real[2][1])
-           dir1z[ii].append(eigvecs.real[0][2])
-           dir2z[ii].append(eigvecs.real[1][2])
-           dir3z[ii].append(eigvecs.real[2][2])
-           princ_stress[ii].append(eigvals.real)
+           
+           if (eigvals.real[0] > eigvals.real[1]): 
+               if (eigvals.real[0] > eigvals.real[2]):
+                   i = 0
+                   if (eigvals.real[1] > eigvals.real[2]):
+                       j=1
+                       k=2
+                   else:
+                       j=2
+                       k=1
+               else:
+                    i=2
+                    j=0
+                    k=1
+           else:
+               if eigvals.real[1]> eigvals.real[2]:
+                   if eigvals.real[0] < eigvals.real[2]:    
+                       i=1
+                       j=2
+                       k=0
+                   else:
+                       i=1
+                       j=0
+                       k=2
+               else:
+                    i=2
+                    j=1
+                    k=0
+           S1[ii].append(eigvals.real[i])
+           S2[ii].append(eigvals.real[j])
+           S3[ii].append(eigvals.real[k])
+           dir1x[ii].append(eigvecs.real[0][i])
+           dir2x[ii].append(eigvecs.real[1][i])
+           dir3x[ii].append(eigvecs.real[2][i])
+           dir1y[ii].append(eigvecs.real[0][j])
+           dir2y[ii].append(eigvecs.real[1][j])
+           dir3y[ii].append(eigvecs.real[2][j])
+           dir1z[ii].append(eigvecs.real[0][k])
+           dir2z[ii].append(eigvecs.real[1][k])
+           dir3z[ii].append(eigvecs.real[2][k])
+           princ_stress[ii].append(eigvals.real[i],eigvals.real[j],eigvals.real[k])
            
     time.append(float(vtu_t[ii])/86400)
     steps.append(float(vtu_t[ii])/float(vtu_t[-1]))
@@ -245,7 +273,7 @@ max_str = np.empty(len(x[ii]))
 #for ii in range(len(vtu_list)):
 print("starting the plot of the princ.stress 1&3")    
 for ii in chosen_times:
-    fig = plt.figure(figsize=[7.58, 4.10])
+    fig = plt.figure(figsize=[9, 9])
     ax = fig.add_subplot(111)
     ### distribute values on coarser meshgrid
     xi,yi,princ_stress1=project_reg_grid(x[ii], z[ii], S1[ii])
@@ -262,7 +290,7 @@ for ii in chosen_times:
     xi,yi,dir3zi=project_reg_grid(x[ii], z[ii], dir3z[ii])
     ### prepare arrows, 2d plot 
     #for ji in range(len(xi)):
-    cycle=len(x[ii]) #len(xi)    
+    cycle=len(x[ii])#len(xi)     #
     x_ver=[]
     y_ver=[]
     for ji in range(cycle):
@@ -272,7 +300,7 @@ for ii in chosen_times:
        else:
             
         #print(jj)
-        Stress1, Stress2, max_str, min_str = prepare_arrows_decomp(x[ii][jj],z[ii][jj],S1[ii][jj],S3[ii][jj],dir1x[ii][jj],dir1z[ii][jj],dir3x[ii][jj],dir3z[ii][jj])
+        Stress1, Stress2, max_str, min_str = prepare_arrows_decomp(x[ii][jj],z[ii][jj],S2[ii][jj],S3[ii][jj],dir2x[ii][jj],dir2z[ii][jj],dir3x[ii][jj],dir3z[ii][jj])
         #Stress1, Stress2, max_str, min_str = prepare_arrows_decomp(xi[jj],yi[jj],princ_stress1[jj],princ_stress3[jj],dir1xi[jj],dir1zi[jj],dir3xi[jj],dir3zi[jj])
         X, Y, U, V = zip(*max_str)
         U2 = [i*-1 for i in U]
@@ -293,8 +321,8 @@ for ii in chosen_times:
         #ax.quiver(X, Y, U2, V2, pivot='tip',headlength=headl,color="white",width=21e-4, scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
         #Q2=ax.quiver(X1, Y1, U1, V1, pivot='tip',headlength=headl,color="white", width=21E-4,scale=scale_par)#, anglines='xy', scale_units='xy', scale=1)
         #ax.quiver(X1, Y1, U3, V3, pivot='tip',headlength=headl,color="white" , width=21.e-4, scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
-    ax.set_xlim(5,45)
-    ax.set_ylim(5,45)
+    ax.set_xlim(15,35)
+    ax.set_ylim(15,35)
     print("prepared plot "+str(ii)+" of "+str(chosen_times))
     """
     #ax.axvspan(2350,2775, alpha=0.1, color='green') #caverns
@@ -333,11 +361,11 @@ for ii in chosen_times:
     #ax.scatter(2300, -395, s=220, c='green',alpha=1 ,linewidths=2.4, edgecolors='blue', marker='X', zorder=10 )
     #ax.scatter(2300, -475, s=220, c='yellow',alpha=1 ,linewidths=2.4, edgecolors='orange', marker='X', zorder=10 )
     #ax.scatter(2300, -475, s=220, c='red', alpha=0.7 ,linewidths=2.4, edgecolors='red',marker='X')
-    ax.quiverkey(Q1, X=0.20, Y=0.90, U=-2e7, label="    Eigenspannung $\sigma_1$", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
-    ax.quiverkey(Q1, X=0.20, Y=0.90, U=2e7, label="", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
-    ax.quiverkey(Q2, X=0.20, Y=0.85, U=-2e7, label="    Eigenspannung $\sigma_3$", labelpos='E', zorder=3)        
-    ax.quiverkey(Q2, X=0.20, Y=0.85, U=2e7, label="", labelpos='E', zorder=3)   
-    
+    ax.quiverkey(Q1, X=0.20, Y=0.90, U=-1e7, label="    Eigenspannung $\sigma_1$", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
+    ax.quiverkey(Q1, X=0.20, Y=0.90, U=1e7, label="", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
+    ax.quiverkey(Q2, X=0.20, Y=0.85, U=-1e7, label="    Eigenspannung $\sigma_3$", labelpos='E', zorder=3)        
+    ax.quiverkey(Q2, X=0.20, Y=0.85, U=1e7, label="", labelpos='E', zorder=3)   
+    ax.set_aspect('equal', adjustable='box')
     #ax.axhspan(-375,-675, alpha=0.1, color='purple') #salzstein     
     #ax.set_title("Zeit: "+str(time[ii])[0:6]+" Jahre")
     
@@ -352,7 +380,7 @@ for ii in chosen_times:
 #%%
 print("starting the plot of the princ.stress 1&2")
 for ii in chosen_times:
-    fig = plt.figure(figsize=[7.58, 4.10])
+    fig = plt.figure(figsize=[9, 9])
     ax = fig.add_subplot(111)
     ### distribute values on coarser meshgrid
     xi,yi,princ_stress1=project_reg_grid(x[ii], z[ii], S1[ii])
@@ -395,15 +423,16 @@ for ii in chosen_times:
         x_ver.append(X)
         y_ver.append(Y)
     print("prepared plot "+str(ii)+" of "+str(chosen_times))
-    ax.set_xlim(5,45)
-    ax.set_ylim(5,45)
+    ax.set_xlim(15,35)
+    ax.set_ylim(15,35)
     ax.quiverkey(Q1, X=0.20, Y=0.90, U=-2e7, label="    Eigenspannung $\sigma_1$", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
     ax.quiverkey(Q1, X=0.20, Y=0.90, U=2e7, label="", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
     ax.quiverkey(Q2, X=0.20, Y=0.85, U=-2e7, label="    Eigenspannung $\sigma_2$", labelpos='E', zorder=3)        
     ax.quiverkey(Q2, X=0.20, Y=0.85, U=2e7, label="", labelpos='E', zorder=3)   
     ax.set_xlabel('x (m)', fontsize=16)
     ax.set_ylabel('y (m)', fontsize=16)
+    ax.set_aspect('equal', adjustable='box')
     plt.tight_layout()
-    plt.savefig(folder_plot+"Stress_1-2_slice_y"+str(float(y_section))+"m_"+str(float(vtu_t[ii])//8640/10)+"d.png", dpi=300)
+    plt.savefig(folder_plot+"Stress_1-2_slice_y"+str(float(y_section))+"m_"+str(float(vtu_t[ii])//864/100)+"d.png", dpi=300)
     plt.close('all')    
 print("Done")    
