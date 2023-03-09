@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Feb 15 23:29:36 2016
+Created on Mar 09 09:29:36 2023
 
 @author: Luca
 """
@@ -75,31 +75,19 @@ def out_str( outfile,list):
  f.close()
  return;
 
-def prepare_arrows(x,y,eig_vals,eig_vecs):
-    soa = np.array([[x, y, 
-                 x+ eig_vals[0] * eig_vecs[0][0], 
-                 y+ eig_vals[0] * eig_vecs[0][1]]])
- 
+def prepare_arrows_decomp_3comp(x,y,S1,S2,S3,d1x,d1y,d2x,d2y,d3x,d3y):
     soa1 = np.array([[x, y, 
-                  x+ eig_vals[1] * eig_vecs[1][0], 
-                  y+ eig_vals[1] * eig_vecs[1][1]]])
-    if eig_vals[0]>eig_vals[1]:
-        return eig_vals[0],eig_vals[1], soa, soa1
-    else:
-        return eig_vals[1],eig_vals[0], soa1, soa
-
-def prepare_arrows_decomp(x,y,S1,S2,d1x,d1y,d2x,d2y):
-    soa = np.array([[x, y, 
                  x+ S1 * d1x, 
                  y+ S1 * d1y]])
  
-    soa1 = np.array([[x, y, 
+    soa2 = np.array([[x, y, 
                   x+ S2 * d2x, 
                   y+ S2 * d2y]])
-    if S1>S2:
-        return S1,S2, soa, soa1
-    else:
-        return S2,S1, soa1, soa
+    soa3 = np.array([[x, y, 
+                  x+ S3 * d3x, 
+                  y+ S3 * d3y]])
+    
+    return S1,S2,S3, soa1, soa2,soa3
         
 def project_reg_grid(x_data,y_data,p_data, **kwargs):
     # define grid
@@ -161,7 +149,7 @@ steps=[]
 time=[]
 #%%
 y_section=30.3
-scale_par=10.5e7
+scale_par=12.e7
 
 
 max_sig=0  
@@ -190,7 +178,11 @@ for ii in chosen_times:
         # filter out the excavation
         x_r2=(nodes_nummpy_array[:,0][jj]-25)**2
         z_r2=(nodes_nummpy_array[:,2][jj]-25)**2
-        rad=np.sqrt(x_r2+z_r2)
+        # time filter to exclude points after excavation
+        if ii>y_section//1:
+            rad=np.sqrt(x_r2+z_r2)
+        else:    
+            rad=1.e16
         if rad > 1.55:
            x[ii].append(nodes_nummpy_array[:,0][jj])
            y[ii].append(nodes_nummpy_array[:,1][jj])
@@ -203,10 +195,13 @@ for ii in chosen_times:
            temperature[ii].append(T_vtu[jj])
                ## compute principal stresses with linalg from scipy 
            eigvals, eigvecs = la.eig(sig[ii][-1])
-           princ_stress[ii].append(eigvals.real)
-           princ_dir[ii].append(eigvecs)
+           #princ_stress[ii].append(eigvals.real)
+           #princ_dir[ii].append(eigvecs)
            
-           
+           """
+           principal stresses are not ordered,
+           part of the routine to simply reoredr them
+           """
            if (eigvals.real[0] > eigvals.real[1]): 
                if (eigvals.real[0] > eigvals.real[2]):
                    i = 0
@@ -237,28 +232,23 @@ for ii in chosen_times:
            S1[ii].append(eigvals.real[i])
            S2[ii].append(eigvals.real[j])
            S3[ii].append(eigvals.real[k])
-           dir1x[ii].append(eigvecs.real[0][i])
-           dir2x[ii].append(eigvecs.real[1][i])
-           dir3x[ii].append(eigvecs.real[2][i])
-           dir1y[ii].append(eigvecs.real[0][j])
-           dir2y[ii].append(eigvecs.real[1][j])
-           dir3y[ii].append(eigvecs.real[2][j])
-           dir1z[ii].append(eigvecs.real[0][k])
-           dir2z[ii].append(eigvecs.real[1][k])
-           dir3z[ii].append(eigvecs.real[2][k])
-           princ_stress[ii].append(eigvals.real[i],eigvals.real[j],eigvals.real[k])
+           dir1x[ii].append(eigvecs.real[i][0])
+           dir1y[ii].append(eigvecs.real[i][1])
+           dir1z[ii].append(eigvecs.real[i][2])
+           dir2x[ii].append(eigvecs.real[j][0])
+           dir2y[ii].append(eigvecs.real[j][1])
+           dir2z[ii].append(eigvecs.real[j][2])
+           dir3x[ii].append(eigvecs.real[k][0])
+           dir3y[ii].append(eigvecs.real[k][1])
+           dir3z[ii].append(eigvecs.real[k][2])
+           princ_stress[ii].append([eigvals.real[i],eigvals.real[j],eigvals.real[k]])
            
     time.append(float(vtu_t[ii])/86400)
     steps.append(float(vtu_t[ii])/float(vtu_t[-1]))
-    ## interpolate observation points
-plt.scatter(x[1],z[1])
+
+
 print("filtered "+str(float(len(S1[ii])))+" nodes of a total of "+str(float(len(nodes_nummpy_array))))
 #%%
-
-
-
-
-
     
 ### plot the arrow plot
 ### prepare arrows
@@ -272,10 +262,15 @@ max_str = np.empty(len(x[ii]))
 #chosen_times=range(len(vtu_list))#w[11,12,22]
 #for ii in range(len(vtu_list)):
 print("starting the plot of the princ.stress 1&3")    
-for ii in chosen_times:
+for ii in chosen_times: 
+    cycle=len(x[ii]) 
     fig = plt.figure(figsize=[9, 9])
     ax = fig.add_subplot(111)
-    ### distribute values on coarser meshgrid
+    """
+    ### distribute values on coarser meshgrid if needed is done here
+    """
+    
+    """
     xi,yi,princ_stress1=project_reg_grid(x[ii], z[ii], S1[ii])
     xi,yi,princ_stress2=project_reg_grid(x[ii], z[ii], S2[ii])
     xi,yi,princ_stress3=project_reg_grid(x[ii], z[ii], S3[ii])
@@ -288,55 +283,43 @@ for ii in chosen_times:
     xi,yi,dir3xi=project_reg_grid(x[ii], z[ii], dir3x[ii])
     xi,yi,dir3yi=project_reg_grid(x[ii], z[ii], dir3y[ii])
     xi,yi,dir3zi=project_reg_grid(x[ii], z[ii], dir3z[ii])
+    cycle=len(x[ii])#len(xi)    
+    """
     ### prepare arrows, 2d plot 
-    #for ji in range(len(xi)):
-    cycle=len(x[ii])#len(xi)     #
-    x_ver=[]
-    y_ver=[]
     for ji in range(cycle):
-       jj=ji # to reduce number of points plotted, arbitrary sampling
+       jj=ji # to reduce number of points plotted, arbitrary sampling by multiplying this index
        if jj>cycle-1:
            pass
        else:
-            
-        #print(jj)
-        Stress1, Stress2, max_str, min_str = prepare_arrows_decomp(x[ii][jj],z[ii][jj],S2[ii][jj],S3[ii][jj],dir2x[ii][jj],dir2z[ii][jj],dir3x[ii][jj],dir3z[ii][jj])
-        #Stress1, Stress2, max_str, min_str = prepare_arrows_decomp(xi[jj],yi[jj],princ_stress1[jj],princ_stress3[jj],dir1xi[jj],dir1zi[jj],dir3xi[jj],dir3zi[jj])
-        X, Y, U, V = zip(*max_str)
-        U2 = [i*-1 for i in U]
-        V2 = [i*-1 for i in V]
-        X1, Y1, U1, V1 = zip(*min_str)
+        Stress1, Stress2, Stress3, max_str, int_str, min_str = prepare_arrows_decomp_3comp(x[ii][jj],z[ii][jj],S1[ii][jj],S2[ii][jj],S3[ii][jj],dir1x[ii][jj],dir1z[ii][jj],dir2x[ii][jj],dir2z[ii][jj],dir3x[ii][jj],dir3z[ii][jj])
         
-        U3 = [i*-1 for i in U1]
-        V3 = [i*-1 for i in V1]
-        #arbitrary scaling factor, needed for visualization (may change with different plots)
+        # prepare arrows of maximum principal stress
+        X1, Y1, U1, V1 = zip(*max_str)
+        U1b = [i*-1 for i in U1]
+        V1b = [i*-1 for i in V1]
+        # prepare arrows of intermediate princ. stress
+        X2, Y2, U2, V2 = zip(*int_str)
+        U2b = [i*-1 for i in U2]
+        V2b = [i*-1 for i in V2]
+        # prepare arrows of minimum princ. stress
+        X3, Y3, U3, V3 = zip(*min_str)
+        U3b = [i*-1 for i in U3]
+        V3b = [i*-1 for i in V3]
+        
         headl=3.75 #arbitrary size factor, needed for visualization (may change with different plots)
-        Q1=ax.quiver(X, Y, U, V, pivot='tip', headlength=headl,color="red", width=21e-4,scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
-        ax.quiver(X, Y, U2, V2, pivot='tip',headlength=headl,color="red",width=21e-4, scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
-        Q2=ax.quiver(X1, Y1, U1, V1, pivot='tip',headlength=headl,color="blue", width=21E-4,scale=scale_par)#, anglines='xy', scale_units='xy', scale=1)
-        ax.quiver(X1, Y1, U3, V3, pivot='tip',headlength=headl,color="blue" , width=21.e-4, scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
-        x_ver.append(X)
-        y_ver.append(Y)
-        #Q1=ax.quiver(X, Y, U, V, pivot='tip', headlength=headl,color="white", width=21e-4,scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
-        #ax.quiver(X, Y, U2, V2, pivot='tip',headlength=headl,color="white",width=21e-4, scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
-        #Q2=ax.quiver(X1, Y1, U1, V1, pivot='tip',headlength=headl,color="white", width=21E-4,scale=scale_par)#, anglines='xy', scale_units='xy', scale=1)
-        #ax.quiver(X1, Y1, U3, V3, pivot='tip',headlength=headl,color="white" , width=21.e-4, scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
+        
+        """
+        plotting, each line plot a sets of "arrows"
+        """
+        Q1=ax.quiver(X1, Y1, U1, V1, pivot='tip', headlength=headl,color="red", width=21e-4,scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
+        ax.quiver(X1, Y1, U1b, V1b, pivot='tip',headlength=headl,color="red",width=21e-4, scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
+        Q2=ax.quiver(X2, Y2, U2, V2, pivot='tip',headlength=headl,color="green", width=21.E-4,scale=scale_par)#, anglines='xy', scale_units='xy', scale=1)
+        ax.quiver(X2, Y2, U2b, V2b, pivot='tip',headlength=headl,color="green" , width=21.e-4, scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
+        Q3=ax.quiver(X3, Y3, U3, V3, pivot='tip',headlength=headl,color="blue", width=21.E-4,scale=scale_par)#, anglines='xy', scale_units='xy', scale=1)
+        ax.quiver(X3, Y3, U3b, V3b, pivot='tip',headlength=headl,color="blue" , width=21.e-4, scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
     ax.set_xlim(15,35)
     ax.set_ylim(15,35)
     print("prepared plot "+str(ii)+" of "+str(chosen_times))
-    """
-    #ax.axvspan(2350,2775, alpha=0.1, color='green') #caverns
-    #ax.axvspan(1360,2250, alpha=0.1, color='purple') #tunnels    
-
-    ann = ax.annotate('HLW',
-                  xy=(1360, -525), xycoords='data',
-                  xytext=(0, 00), textcoords='offset points',
-                  size=100,
-                  bbox=dict(boxstyle="round",
-                            fc=(1.0, 0.7, 0.7),
-                            ec=(1., .5, .5)))#,
-                  #arrowprops=dict(arrowstyle="wedge,tail_width=1.", fc=(1.0, 0.7, 0.7), ec=(1., .5, .5),                                  patchA=None,                                  patchB=el,                                  relpos=(0.2, 0.8),                                  connectionstyle="arc3,rad=-0.1"))
-    """
     #plt.grid()
     # =============================================================================
     #     ax.add_patch(Rectangle((1360, -512.5), 890, -25,
@@ -358,81 +341,20 @@ for ii in chosen_times:
     #              fill=True,
     #              lw=1,zorder=1))#ax.legend()
     # =============================================================================
-    #ax.scatter(2300, -395, s=220, c='green',alpha=1 ,linewidths=2.4, edgecolors='blue', marker='X', zorder=10 )
-    #ax.scatter(2300, -475, s=220, c='yellow',alpha=1 ,linewidths=2.4, edgecolors='orange', marker='X', zorder=10 )
-    #ax.scatter(2300, -475, s=220, c='red', alpha=0.7 ,linewidths=2.4, edgecolors='red',marker='X')
-    ax.quiverkey(Q1, X=0.20, Y=0.90, U=-1e7, label="    Eigenspannung $\sigma_1$", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
-    ax.quiverkey(Q1, X=0.20, Y=0.90, U=1e7, label="", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
-    ax.quiverkey(Q2, X=0.20, Y=0.85, U=-1e7, label="    Eigenspannung $\sigma_3$", labelpos='E', zorder=3)        
-    ax.quiverkey(Q2, X=0.20, Y=0.85, U=1e7, label="", labelpos='E', zorder=3)   
-    ax.set_aspect('equal', adjustable='box')
-    #ax.axhspan(-375,-675, alpha=0.1, color='purple') #salzstein     
-    #ax.set_title("Zeit: "+str(time[ii])[0:6]+" Jahre")
     
+    ax.quiverkey(Q1, X=0.20, Y=0.90, U=-.5e7, label="    Eigenspannung $\sigma_1$", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
+    ax.quiverkey(Q1, X=0.20, Y=0.90, U=.5e7, label="", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
+    ax.quiverkey(Q2, X=0.20, Y=0.85, U=-.5e7, label="    Eigenspannung $\sigma_2$", labelpos='E', zorder=3)        
+    ax.quiverkey(Q2, X=0.20, Y=0.85, U=.5e7, label="", labelpos='E', zorder=3)   
+    ax.quiverkey(Q3, X=0.20, Y=0.8, U=-.5e7, label="    Eigenspannung $\sigma_3$", labelpos='E', zorder=3)        
+    ax.quiverkey(Q3, X=0.20, Y=0.8, U=.5e7, label="", labelpos='E', zorder=3)   
+    ax.set_aspect('equal', adjustable='box')
     ax.set_xlabel('x (m)', fontsize=16)
-    ax.set_ylabel('y (m)', fontsize=16)
+    ax.set_ylabel('z (m)', fontsize=16)
     plt.tight_layout()
-    plt.savefig(folder_plot+"Stress_1-3_slice_y"+str(float(y_section))+"m_"+str(float(vtu_t[ii])//8640/10)+"d.png", dpi=300)
+    plt.savefig(folder_plot+"Stress_1-2-3_slice_y"+str(float(y_section))+"m_"+str(float(vtu_t[ii])//8640/10)+"d.png", dpi=300)
+    
     #plt.show()
     
     plt.close('all')    
     ## putting principal stresses back into vtu files
-#%%
-print("starting the plot of the princ.stress 1&2")
-for ii in chosen_times:
-    fig = plt.figure(figsize=[9, 9])
-    ax = fig.add_subplot(111)
-    ### distribute values on coarser meshgrid
-    xi,yi,princ_stress1=project_reg_grid(x[ii], z[ii], S1[ii])
-    xi,yi,princ_stress2=project_reg_grid(x[ii], z[ii], S2[ii])
-    xi,yi,princ_stress3=project_reg_grid(x[ii], z[ii], S3[ii])
-    xi,yi,dir1xi=project_reg_grid(x[ii], z[ii], dir1x[ii])
-    xi,yi,dir1yi=project_reg_grid(x[ii], z[ii], dir1y[ii])
-    xi,yi,dir1zi=project_reg_grid(x[ii], z[ii], dir1z[ii])
-    xi,yi,dir2xi=project_reg_grid(x[ii], z[ii], dir2x[ii])
-    xi,yi,dir2yi=project_reg_grid(x[ii], z[ii], dir2y[ii])
-    xi,yi,dir2zi=project_reg_grid(x[ii], z[ii], dir2z[ii])
-    xi,yi,dir3xi=project_reg_grid(x[ii], z[ii], dir3x[ii])
-    xi,yi,dir3yi=project_reg_grid(x[ii], z[ii], dir3y[ii])
-    xi,yi,dir3zi=project_reg_grid(x[ii], z[ii], dir3z[ii])
-    ### prepare arrows, 2d plot 
-    #for ji in range(len(xi)):
-    cycle=len(x[ii]) #len(xi)    
-    x_ver=[]
-    y_ver=[]
-    for ji in range(cycle):
-       jj=ji*3 # to reduce number of points plotted, arbitrary sampling
-       if jj>cycle-1:
-           pass
-       else:
-            
-        #print(jj)
-        Stress1, Stress2, max_str, min_str = prepare_arrows_decomp(x[ii][jj],z[ii][jj],S1[ii][jj],S2[ii][jj],dir1x[ii][jj],dir1z[ii][jj],dir2x[ii][jj],dir2z[ii][jj])
-        X, Y, U, V = zip(*max_str)
-        U2 = [i*-1 for i in U]
-        V2 = [i*-1 for i in V]
-        X1, Y1, U1, V1 = zip(*min_str)
-        
-        U3 = [i*-1 for i in U1]
-        V3 = [i*-1 for i in V1]
-        headl=3.75 #arbitrary size factor, needed for visualization (may change with different plots)
-        Q1=ax.quiver(X, Y, U, V, pivot='tip', headlength=headl,color="red", width=21e-4,scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
-        ax.quiver(X, Y, U2, V2, pivot='tip',headlength=headl,color="red",width=21e-4, scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
-        Q2=ax.quiver(X1, Y1, U1, V1, pivot='tip',headlength=headl,color="green", width=21E-4,scale=scale_par)#, anglines='xy', scale_units='xy', scale=1)
-        ax.quiver(X1, Y1, U3, V3, pivot='tip',headlength=headl,color="green" , width=21.e-4, scale=scale_par)#, angles='xy', scale_units='xy', scale=1)
-        x_ver.append(X)
-        y_ver.append(Y)
-    print("prepared plot "+str(ii)+" of "+str(chosen_times))
-    ax.set_xlim(15,35)
-    ax.set_ylim(15,35)
-    ax.quiverkey(Q1, X=0.20, Y=0.90, U=-2e7, label="    Eigenspannung $\sigma_1$", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
-    ax.quiverkey(Q1, X=0.20, Y=0.90, U=2e7, label="", labelpos='E', zorder=3)#, angles='xy', scale_units='xy', scale=1)
-    ax.quiverkey(Q2, X=0.20, Y=0.85, U=-2e7, label="    Eigenspannung $\sigma_2$", labelpos='E', zorder=3)        
-    ax.quiverkey(Q2, X=0.20, Y=0.85, U=2e7, label="", labelpos='E', zorder=3)   
-    ax.set_xlabel('x (m)', fontsize=16)
-    ax.set_ylabel('y (m)', fontsize=16)
-    ax.set_aspect('equal', adjustable='box')
-    plt.tight_layout()
-    plt.savefig(folder_plot+"Stress_1-2_slice_y"+str(float(y_section))+"m_"+str(float(vtu_t[ii])//864/100)+"d.png", dpi=300)
-    plt.close('all')    
-print("Done")    
